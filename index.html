@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ECHONOVA – JCOET community podcasts</title>
+<meta name="description" content="A community podcast and media platform for the JCOET campus. Independent community project; not an official JCOET service.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;800&display=swap">
+<style>
+:root{--bg:#0a1030;--bg2:#121a45;--ink:#eef0ff;--mute:#9aa3d4;--v:#8b5cf6;--v2:#c084fc;--line:#2a3470;--bad:#ff7a90;--ok:#6ee7b7}
+*{box-sizing:border-box}body{margin:0;font-family:Sora,system-ui,sans-serif;background:radial-gradient(1000px 500px at 80% -10%,#3b1d8f55,transparent),var(--bg);color:var(--ink);min-height:100vh}
+a{color:var(--v2)}button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--v2);outline-offset:2px}
+header{display:flex;gap:1rem;align-items:center;flex-wrap:wrap;padding:.9rem 1.2rem;border-bottom:1px solid var(--line)}
+.logo{font-weight:800;font-size:1.3rem;text-decoration:none;color:var(--ink);letter-spacing:.04em}
+nav{display:flex;gap:.3rem;flex-wrap:wrap;flex:1}nav a{padding:.4rem .7rem;border-radius:8px;text-decoration:none;color:var(--mute)}nav a:hover,nav a.on{color:var(--ink);background:var(--bg2)}
+main{max-width:1100px;margin:0 auto;padding:1.2rem}
+.hero{padding:3rem 0 1.5rem}.hero h1{font-size:clamp(2rem,6vw,3.6rem);line-height:1.05;margin:0 0 1rem;max-width:14ch;background:linear-gradient(90deg,#fff,var(--v2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.wave{display:flex;gap:4px;align-items:center;height:40px;margin:1rem 0}.wave i{width:4px;border-radius:2px;background:linear-gradient(var(--v),var(--v2));height:20%;animation:w 1.4s ease-in-out infinite alternate}
+@keyframes w{to{height:100%}}@media(prefers-reduced-motion:reduce){.wave i{animation:none;height:60%}}
+.btn{background:linear-gradient(90deg,var(--v),#6d28d9);border:0;border-radius:10px;padding:.6rem 1.1rem;cursor:pointer;font-weight:600}
+.btn.ghost{background:transparent;border:1px solid var(--line)}.btn.danger{background:#7f1d3a}.btn:disabled{opacity:.5;cursor:wait}
+input,select,textarea{width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:.6rem .8rem}
+label{display:block;margin:.8rem 0 .3rem;color:var(--mute);font-size:.9rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;overflow:hidden;text-decoration:none;color:inherit;display:block}
+.card .th{aspect-ratio:16/10;background:linear-gradient(135deg,#2a1b6e,#0f1a4d);display:grid;place-items:center;font-size:2rem;overflow:hidden}.card .th img{width:100%;height:100%;object-fit:cover}
+.card .bd{padding:.8rem}.card h3{margin:0 0 .3rem;font-size:1rem}.meta{color:var(--mute);font-size:.82rem}
+.panel{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:1.2rem;max-width:520px}
+.msg{padding:.6rem .8rem;border-radius:10px;margin:.8rem 0}.err{background:#3b1020;color:var(--bad)}.okm{background:#0d3a2b;color:var(--ok)}
+.empty{border:1px dashed var(--line);border-radius:14px;padding:2rem;text-align:center;color:var(--mute)}
+video,audio,.view img{width:100%;max-width:800px;border-radius:12px;display:block}
+.row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+progress{width:100%;accent-color:var(--v)}
+.badge{font-size:.72rem;border:1px solid var(--line);border-radius:6px;padding:.1rem .4rem;color:var(--mute)}
+.badge.off{border-color:var(--v2);color:var(--v2)}
+footer{border-top:1px solid var(--line);padding:1.5rem;text-align:center;color:var(--mute);font-size:.85rem}footer a{margin:0 .5rem}
+h2{margin:2rem 0 .8rem}
+</style></head>
+<body>
+<header><a class="logo" href="#/">ECHONOVA</a><nav id="nav"></nav><span id="who"></span></header>
+<main id="app" aria-live="polite"></main>
+<footer><a href="#/page/about">About</a><a href="#/page/help">Help</a><a href="#/page/guidelines">Community Guidelines</a><a href="#/page/privacy">Privacy Policy</a>
+<p>ECHONOVA is an independent community project for the JCOET campus. It is not officially owned, endorsed or operated by JCOET unless stated otherwise.</p></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script>
+const $=s=>document.querySelector(s), app=$('#app');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+if(!window.ECHONOVA_CONFIG||ECHONOVA_CONFIG.url.includes('YOUR')){app.innerHTML='<div class="msg err">Not configured. Copy config.example.js to config.js and add your Supabase URL and anon key. See README.</div>';throw 0}
+const sb=supabase.createClient(ECHONOVA_CONFIG.url,ECHONOVA_CONFIG.anonKey,{auth:{persistSession:true,autoRefreshToken:true}});
+const LIMIT=50*1024*1024, TYPES={audio:['audio/mpeg','audio/mp4','audio/wav','audio/ogg'],video:['video/mp4','video/webm'],photo:['image/jpeg','image/png','image/webp'],document:['application/pdf']};
+const ICON={audio:'🎙',video:'🎬',photo:'🖼',document:'📄'};
+let me=null, profile=null, isAdmin=false, cats=[];
+const urlCache={};
+async function signed(path){if(!path)return null;if(urlCache[path])return urlCache[path];const{data}=await sb.storage.from('media').createSignedUrl(path,3600);return urlCache[path]=data?.signedUrl||null}
+function msg(t,cls='err'){return `<div class="msg ${cls}" role="alert">${esc(t)}</div>`}
+async function loadMe(){const{data:{session}}=await sb.auth.getSession();me=session?.user||null;profile=null;isAdmin=false;
+ if(me){profile=(await sb.from('profiles').select('*').eq('id',me.id).maybeSingle()).data;isAdmin=!!(await sb.from('admin_roles').select('role').eq('user_id',me.id).maybeSingle()).data}
+ cats=(await sb.from('categories').select('*').order('name')).data||[];renderNav()}
+function renderNav(){const l=[['#/','Home'],['#/browse/all','Explore'],['#/browse/audio','Podcasts'],['#/browse/video','Videos'],['#/browse/photo','Photos']];
+ if(profile&&profile.can_publish&&!profile.suspended)l.push(['#/upload','Upload']);if(me)l.push(['#/me','My Profile']);if(isAdmin)l.push(['#/admin','Admin']);
+ const h=location.hash||'#/';$('#nav').innerHTML=l.map(([a,t])=>`<a href="${a}" class="${h===a?'on':''}">${t}</a>`).join('');
+ $('#who').innerHTML=me?`<button class="btn ghost" id="lo">Log out</button>`:`<a class="btn" href="#/auth" style="text-decoration:none">Log in</a>`;
+ if(me)$('#lo').onclick=async()=>{await sb.auth.signOut();await loadMe();location.hash='#/'}}
+function card(p){return `<a class="card" href="#/post/${p.id}"><div class="th" data-cover="${esc(p.cover_path||(p.kind==='photo'?p.file_path:''))}">${ICON[p.kind]}</div><div class="bd"><h3>${esc(p.title)}</h3><div class="meta">@${esc(p.profiles?.username)} · ${p.kind} · ${new Date(p.created_at).toLocaleDateString()}</div></div></a>`}
+async function fillCovers(){for(const el of document.querySelectorAll('[data-cover]')){const p=el.dataset.cover;if(p){const u=await signed(p);if(u)el.innerHTML=`<img alt="" loading="lazy" src="${u}">`}}}
+async function list(opts={}){let q=sb.from('media_posts').select('*,profiles(username),categories(name)').eq('status','published').order('created_at',{ascending:false}).limit(opts.limit||24);
+ if(opts.kind&&opts.kind!=='all')q=q.eq('kind',opts.kind);if(opts.cat)q=q.eq('category_id',opts.cat);
+ if(opts.q){const t=opts.q.replace(/[%,()]/g,' ').trim();q=q.or(`title.ilike.%${t}%,tags.cs.{${t.toLowerCase().replace(/\s+/g,'')}}`)}
+ const{data,error}=await q;if(error)throw error;
+ if(opts.q&&data){const{data:u}=await sb.from('profiles').select('id').ilike('username',`%${opts.q}%`);if(u?.length){const{data:more}=await sb.from('media_posts').select('*,profiles(username),categories(name)').eq('status','published').in('owner',u.map(x=>x.id));for(const m of more||[])if(!data.find(d=>d.id===m.id))data.push(m)}}
+ return data}
+function grid(items,emptyMsg){return items.length?`<div class="grid">${items.map(card).join('')}</div>`:`<div class="empty">${emptyMsg}</div>`}
+
+const routes={
+async home(){app.innerHTML=`<section class="hero"><h1>Your Campus. Your Stories. Your Voice.</h1><div class="wave" aria-hidden="true">${Array.from({length:28},(_, i)=>`<i style="animation-delay:${(i*70)%900}ms"></i>`).join('')}</div>
+ <form id="sf" class="row"><input id="sq" type="search" aria-label="Search" placeholder="Search title, creator, tag" style="max-width:420px"><button class="btn">Search</button></form></section><div id="ann"></div><div id="hm">Loading…</div>`;
+ $('#sf').onsubmit=e=>{e.preventDefault();location.hash='#/search/'+encodeURIComponent($('#sq').value)};
+ const{data:an}=await sb.from('announcements').select('*').order('created_at',{ascending:false}).limit(3);
+ $('#ann').innerHTML=(an||[]).map(a=>`<div class="panel" style="max-width:none;margin-bottom:1rem"><span class="badge off">Official announcement</span><h3>${esc(a.title)}</h3><p>${esc(a.body)}</p></div>`).join('');
+ try{const[a,v,p]=await Promise.all([list({kind:'audio',limit:8}),list({kind:'video',limit:8}),list({kind:'photo',limit:8})]);const all=await list({limit:8});
+  $('#hm').innerHTML=`<h2>Explore Podcasts</h2>${grid(a,'No podcasts yet. Be the first to publish one.')}<h2>Latest Community Uploads</h2><p class="meta">Community posts are not official JCOET content.</p>${grid(all,'Nothing uploaded yet.')}<h2>Videos &amp; Photo Stories</h2>${grid([...v,...p],'No videos or photos yet.')}<h2>Categories</h2><div class="row">${cats.map(c=>`<a class="btn ghost" style="text-decoration:none" href="#/browse/all/${c.id}">${esc(c.name)}</a>`).join('')}</div>`;fillCovers()}
+ catch(e){$('#hm').innerHTML=msg('Could not load content: '+e.message)+'<button class="btn" onclick="route()">Retry</button>'}},
+async browse(kind='all',cat){app.innerHTML=`<h2>${{all:'Explore',audio:'Podcasts',video:'Videos',photo:'Photos'}[kind]||'Explore'}</h2><div class="row"><select id="cf" aria-label="Category" style="max-width:240px"><option value="">All categories</option>${cats.map(c=>`<option value="${c.id}" ${c.id==cat?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div><div id="bl">Loading…</div>`;
+ $('#cf').onchange=e=>location.hash=`#/browse/${kind}${e.target.value?'/'+e.target.value:''}`;
+ try{$('#bl').innerHTML=grid(await list({kind,cat:cat&&+cat}),'No published content here yet.');fillCovers()}catch(e){$('#bl').innerHTML=msg(e.message)}},
+async search(q=''){q=decodeURIComponent(q);app.innerHTML=`<h2>Results for “${esc(q)}”</h2><div id="bl">Searching…</div>`;try{$('#bl').innerHTML=grid(await list({q}),'No matches.');fillCovers()}catch(e){$('#bl').innerHTML=msg(e.message)}},
+async post(id){app.innerHTML='Loading…';const{data:p,error}=await sb.from('media_posts').select('*,profiles(username,verified),categories(name)').eq('id',id).maybeSingle();
+ if(error||!p){app.innerHTML=msg('This content does not exist or you do not have access. '+(me?'':'Try logging in.'));return}
+ const u=await signed(p.file_path);const mine=me&&p.owner===me.id;
+ const media=!u?msg('File unavailable.'):p.kind==='audio'?`<audio controls preload="metadata" src="${u}"></audio>`:p.kind==='video'?`<video controls preload="metadata" src="${u}"></video>`:p.kind==='photo'?`<div class="view"><img alt="${esc(p.title)}" src="${u}"></div>`:`<a class="btn" href="${u}" target="_blank" rel="noopener">Open document</a>`;
+ app.innerHTML=`${p.status!=='published'?`<span class="badge off">${esc(p.status)} – visible only to you</span>`:''}<h1>${esc(p.title)}</h1><p class="meta">@${esc(p.profiles.username)} ${p.profiles.verified?'<span class="badge">verified by admin</span>':''} · ${p.kind} · ${new Date(p.created_at).toLocaleDateString()} · ${esc(p.categories?.name||'Uncategorized')} · ${esc(p.visibility)}</p>${media}<p>${esc(p.description)}</p><p class="meta">${p.tags.map(t=>'#'+esc(t)).join(' ')}</p>
+ <div class="row"><button class="btn" id="sh">Share</button><button class="btn ghost" id="cp">Copy link</button>${u&&p.visibility!=='private'?`<a class="btn ghost" style="text-decoration:none" href="${u}" download>Download</a>`:''}${me&&!mine?'<button class="btn ghost" id="rp">Report</button>':''}${mine?'<button class="btn danger" id="dl">Delete</button>':''}</div><div id="fb"></div>`;
+ const link=location.href.split('#')[0]+'#/post/'+p.id;
+ $('#cp').onclick=async()=>{try{await navigator.clipboard.writeText(link);$('#fb').innerHTML=msg('Link copied','okm')}catch{prompt('Copy this link',link)}};
+ $('#sh').onclick=()=>navigator.share?navigator.share({title:p.title,url:link}).catch(()=>{}):$('#cp').click();
+ if(p.visibility==='private')$('#fb').innerHTML=msg('Private: the link only works for you.','okm');
+ if($('#rp'))$('#rp').onclick=async()=>{const r=prompt('Why are you reporting this?');if(!r)return;const{error}=await sb.from('reports').insert({post_id:p.id,reporter:me.id,reason:r});$('#fb').innerHTML=error?msg(error.code==='23505'?'You already reported this.':error.message):msg('Report sent to moderators','okm')};
+ if($('#dl'))$('#dl').onclick=async()=>{if(!confirm('Delete this post permanently?'))return;await sb.storage.from('media').remove([p.file_path,p.cover_path].filter(Boolean));const{error}=await sb.from('media_posts').delete().eq('id',p.id);if(error)$('#fb').innerHTML=msg(error.message);else location.hash='#/me'}},
+async auth(){if(me){location.hash='#/me';return}
+ app.innerHTML=`<div class="panel"><h2 style="margin-top:0">Log in or sign up</h2><p class="meta">Enter your mobile number. We text a one-time code. Existing accounts log in; new numbers create an account.</p><div id="s1"><label for="ph">Mobile number with country code</label><input id="ph" type="tel" inputmode="tel" placeholder="+91XXXXXXXXXX" autocomplete="tel"><br><br><button class="btn" id="go">Send code</button></div><div id="s2" hidden><label for="otp">6-digit code</label><input id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="8"><br><br><button class="btn" id="vf">Verify</button> <button class="btn ghost" id="bk">Change number</button></div><div id="fb"></div></div>`;
+ let phone='';const fb=h=>$('#fb').innerHTML=h;
+ $('#go').onclick=async e=>{phone=$('#ph').value.trim();if(!/^\+\d{10,15}$/.test(phone))return fb(msg('Use international format, e.g. +919876543210'));e.target.disabled=true;
+  const{error}=await sb.auth.signInWithOtp({phone});e.target.disabled=false;if(error)return fb(msg(error.message+' (If SMS never sends, the phone provider is not configured; see README.)'));fb('');$('#s1').hidden=true;$('#s2').hidden=false};
+ $('#bk').onclick=()=>{$('#s1').hidden=false;$('#s2').hidden=true};
+ $('#vf').onclick=async e=>{e.target.disabled=true;const{error}=await sb.auth.verifyOtp({phone,token:$('#otp').value.trim(),type:'sms'});e.target.disabled=false;if(error)return fb(msg('Code rejected: '+error.message));await loadMe();location.hash=profile?'#/':'#/setup'}},
+async setup(){if(!me){location.hash='#/auth';return}if(profile){location.hash='#/me';return}
+ app.innerHTML=`<div class="panel"><h2 style="margin-top:0">Complete your profile</h2><label for="un">Username (3–24 letters, numbers, _)</label><input id="un" maxlength="24"><label for="bi">Short bio</label><textarea id="bi" maxlength="280"></textarea><label for="af">College affiliation (self-declared; not verified)</label><input id="af" placeholder="e.g. Computer Science, 3rd year"><br><br><label><input type="checkbox" id="ok" style="width:auto"> I agree to the Community Guidelines and Privacy Policy. My phone number stays private.</label><br><button class="btn" id="sv">Save profile</button><div id="fb"></div></div>`;
+ $('#sv').onclick=async e=>{if(!$('#ok').checked)return $('#fb').innerHTML=msg('Please accept the guidelines to continue.');e.target.disabled=true;
+  const{error}=await sb.from('profiles').insert({id:me.id,username:$('#un').value.trim(),bio:$('#bi').value,affiliation:$('#af').value});e.target.disabled=false;
+  if(error)return $('#fb').innerHTML=msg(error.code==='23505'?'That username is taken.':error.code==='23514'?'Username must be 3–24 letters, numbers or _.':error.message);await loadMe();location.hash='#/me'}},
+async upload(){if(!profile||!profile.can_publish||profile.suspended){app.innerHTML=msg('You are not authorized to upload.');return}
+ app.innerHTML=`<div class="panel"><h2 style="margin-top:0">New post</h2><form id="uf"><label for="ti">Title</label><input id="ti" required maxlength="120"><label for="de">Description</label><textarea id="de" maxlength="2000"></textarea><label for="ca">Category</label><select id="ca"><option value="">None</option>${cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><label for="tg">Tags (comma separated)</label><input id="tg"><label for="vi">Visibility</label><select id="vi"><option value="community">Logged-in community</option><option value="public">Public</option><option value="private">Private (only me)</option></select><label for="fl">File (audio, video, photo, PDF; max 50 MB)</label><input id="fl" type="file" required accept="audio/*,video/mp4,video/webm,image/jpeg,image/png,image/webp,application/pdf"><label for="cv">Cover photo (optional)</label><input id="cv" type="file" accept="image/jpeg,image/png,image/webp"><br><br><progress id="pg" value="0" max="100" hidden></progress><div class="row"><button class="btn" data-s="published">Publish</button><button type="button" class="btn ghost" data-s="draft" id="dr">Save draft</button></div><div id="fb"></div></form></div>`;
+ let status='published';app.querySelectorAll('button[data-s]').forEach(b=>b.addEventListener('click',()=>status=b.dataset.s));
+ $('#uf').onsubmit=async e=>{e.preventDefault();const f=$('#fl').files[0],cv=$('#cv').files[0],fb=h=>$('#fb').innerHTML=h;
+  const kind=Object.keys(TYPES).find(k=>TYPES[k].includes(f.type));if(!kind)return fb(msg('Unsupported file type: '+(f.type||'unknown')));
+  if(f.size>LIMIT||(cv&&cv.size>LIMIT))return fb(msg('File exceeds 50 MB.'));if(cv&&!TYPES.photo.includes(cv.type))return fb(msg('Cover must be JPG, PNG or WebP.'));
+  if(status==='published'&&!confirm('Publish now? You can edit or delete it later.'))return;
+  const btns=app.querySelectorAll('button');btns.forEach(b=>b.disabled=true);$('#pg').hidden=false;$('#pg').removeAttribute('value');fb('Uploading…');
+  const put=async file=>{const path=`${me.id}/${crypto.randomUUID()}.${file.name.split('.').pop().toLowerCase().replace(/[^a-z0-9]/g,'')}`;const{error}=await sb.storage.from('media').upload(path,file,{contentType:file.type,upsert:false});if(error)throw error;return path};
+  let fp,cp;try{fp=await put(f);if(cv)cp=await put(cv);
+   const{data,error}=await sb.from('media_posts').insert({owner:me.id,title:$('#ti').value.trim(),description:$('#de').value,category_id:$('#ca').value||null,tags:$('#tg').value.split(',').map(t=>t.trim().toLowerCase().replace(/\s+/g,'')).filter(Boolean).slice(0,10),kind,visibility:$('#vi').value,status,file_path:fp,file_mime:f.type,file_size:f.size,cover_path:cp||null}).select('id').single();if(error)throw error;
+   location.hash='#/post/'+data.id}catch(err){await sb.storage.from('media').remove([fp,cp].filter(Boolean));btns.forEach(b=>b.disabled=false);$('#pg').hidden=true;fb(msg('Upload failed: '+err.message+'. Check your connection and try again.'))}}},
+async me(){if(!me){location.hash='#/auth';return}if(!profile){location.hash='#/setup';return}
+ app.innerHTML=`<h1>@${esc(profile.username)} ${profile.verified?'<span class="badge">verified by admin</span>':''}</h1><p>${esc(profile.bio)}</p><p class="meta">${esc(profile.affiliation)||'No affiliation listed'}</p><div class="row"><button class="btn ghost" id="ed">Edit profile</button><button class="btn ghost" id="vr">Request verification</button></div><div id="fb"></div><h2>My uploads</h2><div id="mp">Loading…</div>`;
+ $('#ed').onclick=async()=>{const bio=prompt('Bio',profile.bio);if(bio===null)return;const af=prompt('Affiliation (self-declared)',profile.affiliation);if(af===null)return;const{error}=await sb.from('profiles').update({bio,affiliation:af}).eq('id',me.id);if(error)$('#fb').innerHTML=msg(error.message);else{await loadMe();routes.me()}};
+ $('#vr').onclick=async()=>{const note=prompt('Tell admins how they can verify you (e.g. roll number, college email, department)');if(!note)return;const{error}=await sb.from('verification_requests').insert({user_id:me.id,note});$('#fb').innerHTML=error?msg(error.message):msg('Request sent. An admin will review it.','okm')};
+ const{data}=await sb.from('media_posts').select('*,profiles(username)').eq('owner',me.id).neq('status','removed').order('created_at',{ascending:false});
+ const g=s=>(data||[]).filter(p=>p.status===s);$('#mp').innerHTML=`<h3>Published</h3>${grid(g('published'),'Nothing published yet.')}<h3>Drafts</h3>${grid(g('draft'),'No drafts.')}`;fillCovers()},
+async admin(){if(!isAdmin){app.innerHTML=msg('Admins only.');return}
+ app.innerHTML='<h2>Moderation</h2><div id="ad">Loading…</div>';
+ const{data:r}=await sb.from('reports').select('*,media_posts(id,title,owner,profiles(username))').eq('status','open').order('created_at');
+ const{data:v}=await sb.from('verification_requests').select('*,profiles(username)').eq('status','pending');
+ $('#ad').innerHTML=`<h3>Open reports</h3>${(r||[]).map(x=>`<div class="panel" style="max-width:none;margin-bottom:.6rem"><a href="#/post/${x.post_id}">${esc(x.media_posts?.title)}</a> by @${esc(x.media_posts?.profiles?.username)}<p>${esc(x.reason)}</p><button class="btn danger" data-a="rm" data-id="${x.id}" data-p="${x.post_id}">Remove post</button> <button class="btn ghost" data-a="dis" data-id="${x.id}">Dismiss</button> <button class="btn ghost" data-a="sus" data-o="${x.media_posts?.owner}" data-id="${x.id}">Suspend user</button></div>`).join('')||'<div class="empty">No open reports.</div>'}
+ <h3>Verification requests</h3>${(v||[]).map(x=>`<div class="panel" style="max-width:none;margin-bottom:.6rem">@${esc(x.profiles.username)}<p>${esc(x.note)}</p><button class="btn" data-a="ap" data-id="${x.id}" data-u="${x.user_id}">Approve</button> <button class="btn ghost" data-a="rj" data-id="${x.id}">Reject</button></div>`).join('')||'<div class="empty">None pending.</div>'}
+ <h3>Official announcement</h3><div class="panel"><input id="at" placeholder="Title"><br><br><textarea id="ab" placeholder="Body"></textarea><br><br><button class="btn" id="pa">Publish announcement</button></div><h3>Add category</h3><div class="row"><input id="nc" style="max-width:240px"><button class="btn" id="ac">Add</button></div>`;
+ $('#ad').onclick=async e=>{const b=e.target.closest('button[data-a]');if(!b)return;const d=b.dataset;let q;
+  if(d.a==='rm'){q=await sb.from('media_posts').update({status:'removed'}).eq('id',d.p);await sb.from('reports').update({status:'resolved'}).eq('id',d.id)}
+  if(d.a==='dis')q=await sb.from('reports').update({status:'resolved'}).eq('id',d.id);
+  if(d.a==='sus'&&confirm('Suspend this user?')){q=await sb.from('profiles').update({suspended:true,can_publish:false}).eq('id',d.o)}
+  if(d.a==='ap'){q=await sb.from('profiles').update({verified:true}).eq('id',d.u);await sb.from('verification_requests').update({status:'approved'}).eq('id',d.id)}
+  if(d.a==='rj')q=await sb.from('verification_requests').update({status:'rejected'}).eq('id',d.id);
+  if(q?.error)alert(q.error.message);else routes.admin()};
+ $('#pa').onclick=async()=>{const{error}=await sb.from('announcements').insert({title:$('#at').value,body:$('#ab').value,author:me.id});alert(error?error.message:'Published');};
+ $('#ac').onclick=async()=>{const{error}=await sb.from('categories').insert({name:$('#nc').value.trim()});if(error)alert(error.message);else{await loadMe();routes.admin()}}},
+page(n){const t={about:['About','ECHONOVA is an independent community podcast and media platform for the JCOET campus. It is not officially owned, approved or partnered with JCOET unless an announcement from authorized administrators says so.'],help:['Help','Log in with your mobile number and a one-time code. Create a username, then upload from the Upload page. Use Report on any post that breaks the guidelines.'],guidelines:['Community Guidelines','Be respectful. Only upload content you own or have permission to share. No harassment, hate, sexual or illegal content. Moderators may remove content and suspend accounts.'],privacy:['Privacy Policy','Your phone number is used only for login and is never shown publicly. Your username, bio and published content are visible according to the visibility you choose. Contact the site administrators to request deletion. (Replace this text with your final policy before launch.)']}[n]||['Not found',''];
+ app.innerHTML=`<div class="panel" style="max-width:700px"><h2 style="margin-top:0">${t[0]}</h2><p>${t[1]}</p></div>`}
+};
+async function route(){const[,name='home',...a]=(location.hash||'#/').slice(1).split('/');const k=name||'home';renderNav();
+ try{await (routes[k]||routes.home)(...a.map(x=>x))}catch(e){app.innerHTML=msg('Something went wrong: '+e.message)+'<button class="btn" onclick="route()">Retry</button>'}}
+addEventListener('hashchange',route);
+sb.auth.onAuthStateChange((ev)=>{if(ev==='SIGNED_OUT'){me=null;profile=null}});
+loadMe().then(route);
+</script></body></html>
